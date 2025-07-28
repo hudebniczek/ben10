@@ -1,7 +1,7 @@
 
 {
-  "name": "QR Map App",
-  "short_name": "QRMap",
+  "name": "benten",
+  "short_name": "BT",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#ffffff",
