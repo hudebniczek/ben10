@@ -1,67 +1,55 @@
+
 <!DOCTYPE html>
 <html lang="cs">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#317EFB"/>
-  <link rel="manifest" href="manifest.json">
-  <title>BEN TEN</title>
-  <style>
-    body { font-family: sans-serif; padding: 1em; }
-    #mapImage { max-width: 100%; margin-top: 1em; }
-    #info { margin-top: 1em; }
-  </style>
+  <meta charset="UTF-8" />
+  <title>QR Map App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="manifest" href="manifest.json" />
+  <script src="libs/html5-qrcode.min.js"></script>
 </head>
 <body>
-  <h1>QR Map App (PWA)</h1>
-  <input type="file" accept="image/*" capture="environment" id="qrInput">
-  <canvas id="canvas" hidden></canvas>
-  <img id="mapImage" alt="Map Preview">
-  <div id="info"></div>
+  <h1>QR Map App</h1>
+  <div id="reader" style="width:300px;height:300px;border:1px solid #ccc;"></div>
+  <p id="info">Načti QR kód kamerou</p>
+  <div id="map-container" style="margin-top:20px;"></div>
 
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <script>
-    const qrInput = document.getElementById('qrInput');
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const mapImage = document.getElementById('mapImage');
-    const info = document.getElementById('info');
+    function showMap(name, lat, lon, mapFile) {
+      const info = document.getElementById('info');
+      const mapContainer = document.getElementById('map-container');
+      mapContainer.innerHTML = '<img src="maps/' + mapFile + '" width="300" /><p>' + name + '</p>';
 
-    qrInput.addEventListener('change', async (event) => {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const img = new Image();
-      img.src = URL.createObjectURL(file);
-      await img.decode();
-
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.drawImage(img, 0, 0);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const code = jsQR(imageData.data, imageData.width, imageData.height);
-
-      if (code) {
-        const [name, lat, lon, mapFile] = code.data.split(';');
-        mapImage.src = `maps/${mapFile}`;
-        info.innerHTML = `Lokace: <strong>${name}</strong><br>Souřadnice: ${lat}, ${lon}`;
-
-        // GPS check (mock)
-        navigator.geolocation.getCurrentPosition(pos => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(pos) {
           const dLat = Math.abs(pos.coords.latitude - parseFloat(lat));
           const dLon = Math.abs(pos.coords.longitude - parseFloat(lon));
-          if (dLat < 0.0005 && dLon < 0.0005) {
-            info.innerHTML += `<br><strong>Jste na správném místě. Hledejte další QR kód.</strong>`;
+          if (dLat < 0.001 && dLon < 0.001) {
+            info.textContent = "Jste na správném místě!";
           } else {
-            info.innerHTML += `<br>Nejste ještě na cílovém místě.`;
+            info.textContent = "Nejste na cílové pozici.";
           }
+        }, function() {
+          info.textContent = "Nelze zjistit polohu.";
         });
       } else {
-        info.textContent = 'QR kód nelze přečíst.';
+        info.textContent = "Geolokace není podporována.";
       }
-    });
-  </script>
-  <script>
+    }
+
+    function handleQR(decodedText) {
+      const [name, lat, lon, mapFile] = decodedText.split(';');
+      showMap(name, lat, lon, mapFile);
+    }
+
+    function handleError(error) {
+      console.warn("Chyba QR:", error);
+    }
+
+    const scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 }, false);
+    scanner.render(handleQR, handleError);
+
+    // Service Worker registrace
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('service-worker.js');
     }
